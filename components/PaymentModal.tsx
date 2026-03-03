@@ -1,6 +1,15 @@
 "use client";
 
-import { CheckIcon, DollarSign, Loader2, ShieldCheck, X, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  CheckIcon,
+  DollarSign,
+  Loader2,
+  Play,
+  ShieldCheck,
+  X,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -80,16 +89,20 @@ const REJECTION_MESSAGES: Record<string, { title: string; hint: string }> = {
   },
 };
 
-function getRejectionInfo(errorMessage: string): { title: string; hint: string } {
+function getRejectionInfo(errorMessage: string): {
+  title: string;
+  hint: string;
+} {
   for (const [code, info] of Object.entries(REJECTION_MESSAGES)) {
     if (errorMessage.includes(code)) return info;
   }
   return {
     title: "Pagamento recusado",
-    hint: errorMessage || "Verifique os dados e tente novamente, ou use outro cartão.",
+    hint:
+      errorMessage ||
+      "Verifique os dados e tente novamente, ou use outro cartão.",
   };
 }
-
 
 interface PixData {
   qrCode: string;
@@ -125,6 +138,9 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
   const [pixCopied, setPixCopied] = useState(false);
   const [postPaymentDialog, setPostPaymentDialog] =
     useState<PostPaymentDialog>(null);
+
+  // Bypass / demo
+  const [bypassing, setBypassing] = useState(false);
 
   // Rejection modal
   const [rejectionModal, setRejectionModal] = useState<{
@@ -271,7 +287,9 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
         setPostPaymentDialog("in_process");
       } else {
         throw new Error(
-          data.detail || data.status_detail || `Pagamento recusado (${data.status}).`,
+          data.detail ||
+            data.status_detail ||
+            `Pagamento recusado (${data.status}).`,
         );
       }
     } catch (err: any) {
@@ -425,6 +443,32 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300 active:scale-[0.98]"
               >
                 Pagar Agora
+              </button>
+              <button
+                onClick={async () => {
+                  setBypassing(true);
+                  try {
+                    const res = await fetch("/api/subscription/bypass", {
+                      method: "POST",
+                    });
+                    if (!res.ok) {
+                      const data = await res.json();
+                      throw new Error(data?.error ?? "Erro ao ativar demo");
+                    }
+                    router.push("/dashboard?payment=demo");
+                  } catch {
+                    setBypassing(false);
+                  }
+                }}
+                disabled={bypassing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-700/60 bg-slate-800/50 py-2.5 text-xs font-medium text-slate-400 transition hover:bg-slate-700/60 hover:text-white hover:border-slate-600 disabled:opacity-50"
+              >
+                {bypassing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+                {bypassing ? "Ativando demo..." : "Testar sem pagar (Demo)"}
               </button>
               <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -701,7 +745,6 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                 </p>
               </div>
             )}
-
           </div>
         )}
 
@@ -721,7 +764,8 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                     Pagamento aprovado!
                   </h3>
                   <p className="mt-2 text-center text-sm text-slate-400">
-                    Sua assinatura está ativa. Deseja ir para o dashboard e fazer o deploy agora?
+                    Sua assinatura está ativa. Deseja ir para o dashboard e
+                    fazer o deploy agora?
                   </p>
                   <div className="mt-5 flex gap-2">
                     <button
@@ -749,7 +793,8 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                     Pagamento em análise
                   </h3>
                   <p className="mt-2 text-center text-sm text-slate-400">
-                    Recebemos seu pagamento. A confirmação pode levar alguns minutos — você será notificado assim que for aprovado.
+                    Recebemos seu pagamento. A confirmação pode levar alguns
+                    minutos — você será notificado assim que for aprovado.
                   </p>
                   <div className="mt-5 flex gap-2">
                     <button

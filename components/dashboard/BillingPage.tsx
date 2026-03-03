@@ -8,6 +8,7 @@ import {
   Clock,
   CreditCard,
   Loader2,
+  Play,
   Receipt,
   RefreshCw,
   Shield,
@@ -152,6 +153,7 @@ function ValidityBadge({ validUntil }: { validUntil: string }) {
 export function BillingPage({ user: _user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  const [bypassing, setBypassing] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [subData, setSubData] = useState<SubscriptionResponse | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -216,10 +218,36 @@ export function BillingPage({ user: _user }: { user: User }) {
     }
   }
 
+  async function handleBypass() {
+    setBypassing(true);
+    try {
+      const res = await fetch("/api/subscription/bypass", { method: "POST" });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data?.error ?? "Erro ao ativar modo demo");
+      }
+      toast.success("Modo demo ativado! Explore a plataforma à vontade.");
+      // Refresh both the local page data and the global subscription context
+      await Promise.all([
+        loadSubscription(),
+        loadHistory(),
+        refreshSubscription(),
+      ]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao ativar demo.");
+    } finally {
+      setBypassing(false);
+    }
+  }
+
   async function handleRefresh() {
     setLoading(true);
     setHistoryLoading(true);
-    await Promise.all([loadSubscription(), loadHistory(), refreshSubscription()]);
+    await Promise.all([
+      loadSubscription(),
+      loadHistory(),
+      refreshSubscription(),
+    ]);
     toast.success("Dados atualizados!");
   }
 
@@ -353,18 +381,33 @@ export function BillingPage({ user: _user }: { user: User }) {
                 ))}
               </div>
 
-              <button
-                onClick={handleSubscribe}
-                disabled={subscribing}
-                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 hover:brightness-110 disabled:opacity-50"
-              >
-                {subscribing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CreditCard className="h-4 w-4" />
-                )}
-                {subscribing ? "Redirecionando..." : "Assinar agora"}
-              </button>
+              <div className="flex flex-col items-center gap-3">
+                <button
+                  onClick={handleSubscribe}
+                  disabled={subscribing}
+                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 hover:brightness-110 disabled:opacity-50"
+                >
+                  {subscribing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="h-4 w-4" />
+                  )}
+                  {subscribing ? "Redirecionando..." : "Assinar agora"}
+                </button>
+
+                <button
+                  onClick={handleBypass}
+                  disabled={bypassing}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/50 px-4 py-2 text-xs font-medium text-slate-400 transition-all hover:bg-slate-700/60 hover:text-white hover:border-slate-600 disabled:opacity-50"
+                >
+                  {bypassing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5" />
+                  )}
+                  {bypassing ? "Ativando demo..." : "Testar sem pagar (Demo)"}
+                </button>
+              </div>
 
               <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-slate-600">
                 <Shield className="h-3 w-3" />
